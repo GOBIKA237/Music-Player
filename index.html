@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎵 Music Player</h1>
+            <div class="user-info">
+                <span id="username"></span>
+                <button onclick="logout()" class="btn-logout">Logout</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Search Section -->
+            <div class="search-section">
+                <h2>Search Music</h2>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search for songs, artists..." onkeypress="handleSearchKey(event)">
+                    <button onclick="searchMusic()" class="btn-search">Search</button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <!-- Player Section -->
+            <div class="player-section">
+                <h2>Now Playing</h2>
+                <div id="playerContainer">
+                    <div class="no-video">
+                        <p>🎵</p>
+                        <p>Search and select a song to play</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Playlist Section -->
+            <div class="playlist-section">
+                <h2>My Queue</h2>
+                <div id="queueList" class="queue-list">
+                    <p class="empty-message">No songs in queue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let player;
+        let currentQueue = [];
+        let currentIndex = 0;
+        let username = '';
+
+        // Load YouTube API
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+
+        // Initialize when API is ready
+        function onYouTubeIframeAPIReady() {
+            console.log('YouTube API Ready');
+        }
+
+        // Load user info
+        async function loadUser() {
+            try {
+                const response = await fetch('/api/user');
+                if (response.ok) {
+                    const data = await response.json();
+                    username = data.username;
+                    document.getElementById('username').textContent = `Hello, ${username}!`;
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+            }
+        }
+
+        // Search music
+        async function searchMusic() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<p>Searching...</p>';
+
+            try {
+                // Using YouTube search via iframe (simplified for demo)
+                // In production, you'd use YouTube Data API
+                const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' music')}`;
+                
+                // For demo, we'll create sample results
+                resultsDiv.innerHTML = `
+                    <div class="result-item">
+                        <div class="result-info">
+                            <strong>Search on YouTube</strong>
+                            <p>Click to search "${query}" on YouTube and copy video ID</p>
+                        </div>
+                        <button onclick="window.open('${searchUrl}', '_blank')" class="btn-play">Search</button>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-info">
+                            <input type="text" id="videoIdInput" placeholder="Paste YouTube Video ID here" style="width: 100%; padding: 8px; margin-top: 5px;">
+                        </div>
+                        <button onclick="playVideoById()" class="btn-play">Play</button>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = '<p>Error searching. Please try again.</p>';
+            }
+        }
+
+        function handleSearchKey(event) {
+            if (event.key === 'Enter') {
+                searchMusic();
+            }
+        }
+
+        // Play video by ID
+        function playVideoById() {
+            const videoId = document.getElementById('videoIdInput').value.trim();
+            if (!videoId) {
+                alert('Please enter a video ID');
+                return;
+            }
+            playVideo(videoId, 'Selected Video');
+        }
+
+        // Play video
+        function playVideo(videoId, title) {
+            const playerContainer = document.getElementById('playerContainer');
+            
+            if (player) {
+                player.destroy();
+            }
+
+            playerContainer.innerHTML = `<div id="ytplayer"></div>`;
+
+            player = new YT.Player('ytplayer', {
+                height: '400',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    'playsinline': 1,
+                    'autoplay': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+
+            // Add to queue
+            addToQueue(videoId, title);
+        }
+
+        function onPlayerReady(event) {
+            event.target.playVideo();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.ENDED) {
+                playNext();
+            }
+        }
+
+        // Queue management
+        function addToQueue(videoId, title) {
+            const existingIndex = currentQueue.findIndex(item => item.videoId === videoId);
+            if (existingIndex === -1) {
+                currentQueue.push({ videoId, title });
+                updateQueueDisplay();
+            }
+        }
+
+        function updateQueueDisplay() {
+            const queueList = document.getElementById('queueList');
+            
+            if (currentQueue.length === 0) {
+                queueList.innerHTML = '<p class="empty-message">No songs in queue</p>';
+                return;
+            }
+
+            queueList.innerHTML = currentQueue.map((item, index) => `
+                <div class="queue-item ${index === currentIndex ? 'active' : ''}">
+                    <div class="queue-info">
+                        <strong>${item.title}</strong>
+                        <small>ID: ${item.videoId}</small>
+                    </div>
+                    <div class="queue-actions">
+                        <button onclick="playFromQueue(${index})" class="btn-small">Play</button>
+                        <button onclick="removeFromQueue(${index})" class="btn-small btn-remove">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function playFromQueue(index) {
+            currentIndex = index;
+            const item = currentQueue[index];
+            playVideo(item.videoId, item.title);
+        }
+
+        function removeFromQueue(index) {
+            currentQueue.splice(index, 1);
+            if (currentIndex >= currentQueue.length) {
+                currentIndex = Math.max(0, currentQueue.length - 1);
+            }
+            updateQueueDisplay();
+        }
+
+        function playNext() {
+            if (currentIndex < currentQueue.length - 1) {
+                playFromQueue(currentIndex + 1);
+            }
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        // Initialize
+        loadUser();
+    </script>
+</body>
+</html>

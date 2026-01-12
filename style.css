@@ -1,0 +1,367 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+/* Auth Pages */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.auth-box {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.auth-box h1 {
+    text-align: center;
+    color: #667eea;
+    margin-bottom: 30px;
+    font-size: 2em;
+}
+
+.tab-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    background: #667eea;
+    color: white;
+}
+
+.auth-form h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 16px;
+    transition: border 0.3s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+}
+
+.error-message {
+    color: #e74c3c;
+    margin-top: 15px;
+    text-align: center;
+    min-height: 20px;
+}
+
+/* Main App */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    background: white;
+    border-radius: 15px;
+    padding: 20px 30px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+    color: #667eea;
+    font-size: 1.8em;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info span {
+    font-weight: bold;
+    color: #333;
+}
+
+.btn-logout {
+    padding: 10px 20px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-logout:hover {
+    background: #c0392b;
+}
+
+.main-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+}
+
+.search-section, .player-section, .playlist-section {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.search-section {
+    grid-column: 1;
+}
+
+.player-section {
+    grid-column: 2;
+    grid-row: 1 / 3;
+}
+
+.playlist-section {
+    grid-column: 1;
+}
+
+.search-section h2, .player-section h2, .playlist-section h2 {
+    color: #667eea;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+#searchInput {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+#searchInput:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-search {
+    padding: 12px 25px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-search:hover {
+    background: #5568d3;
+}
+
+.search-results {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.result-item {
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.3s;
+}
+
+.result-item:hover {
+    background: #f8f9fa;
+}
+
+.result-info strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.result-info p {
+    color: #666;
+    font-size: 14px;
+}
+
+.btn-play {
+    padding: 8px 20px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-play:hover {
+    background: #229954;
+}
+
+#playerContainer {
+    background: #f8f9fa;
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.no-video {
+    text-align: center;
+    color: #999;
+}
+
+.no-video p:first-child {
+    font-size: 3em;
+    margin-bottom: 10px;
+}
+
+.queue-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.queue-item {
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s;
+}
+
+.queue-item.active {
+    background: #e8f5e9;
+    border-color: #27ae60;
+}
+
+.queue-info strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.queue-info small {
+    color: #666;
+    font-size: 12px;
+}
+
+.queue-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s;
+}
+
+.btn-small:hover {
+    background: #5568d3;
+}
+
+.btn-remove {
+    background: #e74c3c;
+}
+
+.btn-remove:hover {
+    background: #c0392b;
+}
+
+.empty-message {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .search-section, .player-section, .playlist-section {
+        grid-column: 1;
+    }
+    
+    .player-section {
+        grid-row: auto;
+    }
+}

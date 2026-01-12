@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player - Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <h1>🎵 Music Player</h1>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showLogin()">Login</button>
+                <button class="tab-btn" onclick="showRegister()">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form">
+                <h2>Welcome Back</h2>
+                <div class="form-group">
+                    <input type="text" id="loginUsername" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+                <div id="loginError" class="error-message"></div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form" style="display: none;">
+                <h2>Create Account</h2>
+                <div class="form-group">
+                    <input type="text" id="registerUsername" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="registerPassword" placeholder="Password (min 6 characters)" required>
+                </div>
+                <button type="submit" class="btn-primary">Sign Up</button>
+                <div id="registerError" class="error-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.querySelectorAll('.tab-btn')[1].classList.remove('active');
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.querySelectorAll('.tab-btn')[0].classList.remove('active');
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    errorDiv.textContent = data.error;
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Connection error. Please try again.';
+            }
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const errorDiv = document.getElementById('registerError');
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    errorDiv.textContent = data.error;
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Connection error. Please try again.';
+            }
+        });
+    </script>
+</body>
+</html>
