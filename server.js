@@ -6,7 +6,7 @@ const path = require('path');
 
 const app = express();
 const fs = require('fs');
-const path = require('path');
+
 
 const dataDir = '/opt/render/project/data';
 if (!fs.existsSync(dataDir)) {
@@ -113,6 +113,7 @@ app.get('/api/user', requireAuth, (req, res) => {
   res.json({ username: req.session.username });
 });
 
-app.listen(3000, () => {
-  console.log('✅ Secure Music Player running on http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Secure Music Player running on port ${PORT}`);
 });
