@@ -5,11 +5,17 @@ const Database = require('better-sqlite3');
 const path = require('path');
 
 const app = express();
-const db = new Database(
-  process.env.NODE_ENV === 'production'
-    ? '/data/music.db'
-    : 'music.db'
-);
+const fs = require('fs');
+const path = require('path');
+
+const dataDir = '/opt/render/project/data';
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'music.db');
+const db = new Database(dbPath);
+
 
 
 /* 🔐 API KEY ONLY ON SERVER */
