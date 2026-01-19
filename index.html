@@ -1,238 +1,367 @@
-<!DOCTYPE html>
+<!DOCTYPE html>  
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Player</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>🎵 Music Player</h1>
-            <div class="user-info">
-                <span id="username"></span>
-                <button onclick="logout()" class="btn-logout">Logout</button>
-            </div>
-        </header>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Search Section -->
-            <div class="search-section">
+<div class="container">
+
+    <!-- Header -->
+    <header class="header">
+        <h1>🎵 Music Player</h1>
+
+        <!-- MODE TABS -->
+        <div class="mode-tabs">
+            <button class="mode-btn active" data-mode="search">Search</button>
+            <button class="mode-btn" data-mode="mood">Mood</button>
+            <button class="mode-btn" data-mode="focus">Focus</button>
+            <button class="mode-btn" data-mode="karaoke">Karaoke</button>
+        </div>
+
+        <div class="user-info">
+            <span id="username"></span>
+            <button onclick="logout()" class="btn-logout">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- SEARCH / MOOD PANEL -->
+        <div class="search-section">
+
+            <!-- SEARCH MODE -->
+            <div id="searchMode">
                 <h2>Search Music</h2>
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search for songs, artists..." onkeypress="handleSearchKey(event)">
+                    <input id="searchInput"
+                           placeholder="Search for songs, artists..."
+                           onkeypress="handleSearchKey(event)">
                     <button onclick="searchMusic()" class="btn-search">Search</button>
                 </div>
-                <div id="searchResults" class="search-results"></div>
             </div>
 
-            <!-- Player Section -->
-            <div class="player-section">
-                <h2>Now Playing</h2>
-                <div id="playerContainer">
-                    <div class="no-video">
-                        <p>🎵</p>
-                        <p>Search and select a song to play</p>
-                    </div>
+            <!-- MOOD MODE -->
+            <div id="moodMode" style="display:none;">
+                <h2>Mood Based Listening</h2>
+
+                <select id="languageSelect" class="mood-select">
+                    <option value="English">English</option>
+                    <option value="Tamil">Tamil</option>
+                    <option value="Hindi">Hindi</option>
+                    <option value="Korean">Korean</option>
+                </select>
+
+                <div class="mood-buttons">
+                    <button onclick="searchMood('happy')">😊 Happy</button>
+                    <button onclick="searchMood('sad')">😔 Sad</button>
+                    <button onclick="searchMood('chill')">😌 Chill</button>
+                    <button onclick="searchMood('romantic')">💖 Romantic</button>
+                    <button onclick="searchMood('energetic')">🔥 Energetic</button>
+                    <button onclick="searchMood('study')">📚 Study</button>
                 </div>
             </div>
 
-            <!-- Playlist Section -->
-            <div class="playlist-section">
-                <h2>My Queue</h2>
-                <div id="queueList" class="queue-list">
-                    <p class="empty-message">No songs in queue</p>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
+        <!-- PLAYER + KARAOKE -->
+        <div class="player-section">
+            <h2>Now Playing</h2>
+
+            <div id="playerContainer">
+                <div class="no-video">
+                    <p>🎵</p>
+                    <p>Select a song to play</p>
+                </div>
+            </div>
+
+            <!-- KARAOKE PANEL -->
+            <div id="lyricsPanel" style="display:none;">
+                <h3>🎤 Lyrics</h3>
+                <div id="lyricsContent" class="lyrics-box">
+                    <p>Select a song to see lyrics</p>
                 </div>
             </div>
         </div>
+
+        <!-- QUEUE -->
+        <div class="playlist-section">
+            <h2>My Queue</h2>
+            <div id="queueList" class="queue-list">
+                <p class="empty-message">No songs in queue</p>
+            </div>
+        </div>
+
     </div>
+</div>
 
-    <script>
-        let player;
-        let currentQueue = [];
-        let currentIndex = 0;
-        let username = '';
+<script>
+/* ================= CONFIG ================= */
 
-        // Load YouTube API
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(tag);
 
-        // Initialize when API is ready
-        function onYouTubeIframeAPIReady() {
-            console.log('YouTube API Ready');
+/* ================= STATE ================= */
+let player = null;
+let currentQueue = [];
+let currentIndex = -1;
+let listeningMode = "search";
+let currentSong = { title: null };
+
+let lyricLines = [];
+let currentLyricIndex = 0;
+let lyricTimer = null;
+
+/* ================= LOAD YT API ================= */
+const tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+
+/* ================= USER ================= */
+async function loadUser() {
+    const res = await fetch('/api/user');
+    if (!res.ok) return location.href = '/';
+    const data = await res.json();
+    username.textContent = `Hello, ${data.username}!`;
+}
+loadUser();
+
+/* ================= MODE SWITCH ================= */
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.onclick = () => setMode(btn.dataset.mode);
+});
+
+function setMode(mode) {
+    listeningMode = mode;
+
+    document.querySelectorAll('.mode-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === mode)
+    );
+
+    searchMode.style.display = mode === 'search' ? 'block' : 'none';
+    moodMode.style.display = mode === 'mood' ? 'block' : 'none';
+    lyricsPanel.style.display = mode === 'karaoke' ? 'block' : 'none';
+
+    document.body.classList.toggle('focus-mode', mode === 'focus');
+
+    if (mode === 'karaoke') loadLyrics();
+}
+
+/* ================= SEARCH ================= */
+async function searchYouTube(query) {
+    searchResults.innerHTML = '<p>Searching...</p>';
+
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    if (!data.items) {
+        searchResults.innerHTML = '<p>No results.</p>';
+        return;
+    }
+
+    searchResults.innerHTML = data.items.map(item => `
+        <div class="result-item" onclick="handleSearchPlay('${item.id.videoId}', '${item.snippet.title.replace(/'/g, "\\'")}')">
+            <img src="${item.snippet.thumbnails.default.url}" class="result-thumbnail">
+            <div class="result-info">
+                <strong>${item.snippet.title}</strong>
+                <p>${item.snippet.channelTitle}</p>
+            </div>
+            <button class="btn-play">Play</button>
+        </div>
+    `).join('');
+}
+
+
+function searchMusic() {
+    const q = searchInput.value.trim();
+    if (!q) return;
+    searchYouTube(q);
+}
+
+function searchMood(mood) {
+    const lang = languageSelect.value;
+    searchYouTube(`${lang} ${mood} songs`);
+}
+
+function handleSearchKey(e) {
+    if (e.key === 'Enter') searchMusic();
+}
+
+/* ================= PLAYER ================= */
+function playNow(videoId, title) {
+    currentSong.title = title;
+    document.body.classList.add('playing-mode');
+
+    if (player) player.destroy();
+    playerContainer.innerHTML = '<div id="ytplayer"></div>';
+
+    player = new YT.Player('ytplayer', {
+        videoId,
+        playerVars: { autoplay: 1 },
+        events: { onStateChange: onPlayerStateChange }
+    });
+
+    if (listeningMode === 'karaoke') loadLyrics();
+}
+
+function handleSearchPlay(videoId, title) {
+    if (!currentQueue.some(v => v.videoId === videoId)) {
+        currentQueue.push({ videoId, title });
+    }
+
+    currentIndex = currentQueue.findIndex(v => v.videoId === videoId);
+    playNow(videoId, title);
+    updateQueueDisplay();
+}
+
+/* ================= QUEUE ================= */
+function updateQueueDisplay() {
+    if (!currentQueue.length) {
+        queueList.innerHTML = '<p class="empty-message">No songs in queue</p>';
+        return;
+    }
+
+    queueList.innerHTML = currentQueue.map((v, i) => `
+        <div class="queue-item ${i === currentIndex ? 'active' : ''}">
+            <div class="queue-info">
+                <strong>${v.title}</strong>
+            </div>
+            <div class="queue-actions">
+                <button class="btn-small" onclick="playFromQueue(${i})">Play</button>
+                <button class="btn-small btn-remove" onclick="removeFromQueue(${i})">Remove</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function playFromQueue(i) {
+    currentIndex = i;
+    playNow(currentQueue[i].videoId, currentQueue[i].title);
+    updateQueueDisplay();
+}
+
+function removeFromQueue(i) {
+    currentQueue.splice(i, 1);
+    if (currentIndex >= currentQueue.length) currentIndex--;
+    updateQueueDisplay();
+}
+
+function onPlayerStateChange(e) {
+    // STOP lyrics when video is paused or ended
+    if (
+        e.data === YT.PlayerState.PAUSED ||
+        e.data === YT.PlayerState.ENDED ||
+        e.data === YT.PlayerState.CUED
+    ) {
+        clearInterval(lyricTimer);
+        lyricTimer = null;
+    }
+
+    // Auto play next song
+    if (e.data === YT.PlayerState.ENDED && currentIndex < currentQueue.length - 1) {
+        currentIndex++;
+        playNow(currentQueue[currentIndex].videoId, currentQueue[currentIndex].title);
+        updateQueueDisplay();
+    }
+}
+
+
+/* ================= LYRICS + KARAOKE ================= */
+function cleanTitle(title) {
+    return title
+        .replace(/\(.*?\)/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/official.*$/i, '')
+        .replace(/lyrics.*$/i, '')
+        .replace(/video.*$/i, '')
+        .trim();
+}
+
+function splitArtistSong(title) {
+    const cleaned = cleanTitle(title);
+    if (cleaned.includes('-')) {
+        const parts = cleaned.split('-');
+        return { artist: parts[0].trim(), song: parts.slice(1).join('-').trim() };
+    }
+    return { artist: '', song: cleaned };
+}
+
+async function loadLyrics() {
+    if (!currentSong.title) {
+        lyricsContent.innerHTML = '<p>No song playing.</p>';
+        return;
+    }
+
+    lyricsContent.innerHTML = '<p>🎤 Loading lyrics...</p>';
+
+    const { artist, song } = splitArtistSong(currentSong.title);
+    let lyricsText = null;
+
+    try {
+        const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(artist + ' ' + song)}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data[0]?.plainLyrics) {
+            lyricsText = data[0].plainLyrics;
+        }
+    } catch {}
+
+    if (!lyricsText) {
+        try {
+            const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(song)}`);
+            const data = await res.json();
+            lyricsText = data.lyrics;
+        } catch {}
+    }
+
+    if (!lyricsText) {
+        lyricsContent.innerHTML = '<p>❌ Lyrics not available.</p>';
+        return;
+    }
+
+    lyricLines = lyricsText.split('\n').filter(l => l.trim());
+    lyricsContent.innerHTML = lyricLines.map(l => `<p>${l}</p>`).join('');
+
+    startKaraokeScroll();
+}
+
+function startKaraokeScroll() {
+    clearInterval(lyricTimer);   // <-- IMPORTANT
+    lyricTimer = null;
+
+    currentLyricIndex = 0;
+    const duration = player?.getDuration() || 180;
+    const interval = (duration / lyricLines.length) * 1000;
+    const lines = lyricsContent.querySelectorAll('p');
+
+    lyricTimer = setInterval(() => {
+        if (currentLyricIndex >= lines.length) {
+            clearInterval(lyricTimer);
+            lyricTimer = null;
+            return;
         }
 
-        // Load user info
-        async function loadUser() {
-            try {
-                const response = await fetch('/api/user');
-                if (response.ok) {
-                    const data = await response.json();
-                    username = data.username;
-                    document.getElementById('username').textContent = `Hello, ${username}!`;
-                } else {
-                    window.location.href = '/';
-                }
-            } catch (error) {
-                console.error('Error loading user:', error);
-            }
-        }
+        lines.forEach(l => l.classList.remove('active-line'));
+        lines[currentLyricIndex].classList.add('active-line');
+        lines[currentLyricIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Search music
-        async function searchMusic() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) return;
+        currentLyricIndex++;
+    }, interval);
+}
 
-            const resultsDiv = document.getElementById('searchResults');
-            resultsDiv.innerHTML = '<p>Searching...</p>';
 
-            try {
-                // Using YouTube search via iframe (simplified for demo)
-                // In production, you'd use YouTube Data API
-                const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' music')}`;
-                
-                // For demo, we'll create sample results
-                resultsDiv.innerHTML = `
-                    <div class="result-item">
-                        <div class="result-info">
-                            <strong>Search on YouTube</strong>
-                            <p>Click to search "${query}" on YouTube and copy video ID</p>
-                        </div>
-                        <button onclick="window.open('${searchUrl}', '_blank')" class="btn-play">Search</button>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-info">
-                            <input type="text" id="videoIdInput" placeholder="Paste YouTube Video ID here" style="width: 100%; padding: 8px; margin-top: 5px;">
-                        </div>
-                        <button onclick="playVideoById()" class="btn-play">Play</button>
-                    </div>
-                `;
-            } catch (error) {
-                resultsDiv.innerHTML = '<p>Error searching. Please try again.</p>';
-            }
-        }
+/* ================= LOGOUT ================= */
+async function logout() {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/';
+}
 
-        function handleSearchKey(event) {
-            if (event.key === 'Enter') {
-                searchMusic();
-            }
-        }
+setMode("search");
+</script>
 
-        // Play video by ID
-        function playVideoById() {
-            const videoId = document.getElementById('videoIdInput').value.trim();
-            if (!videoId) {
-                alert('Please enter a video ID');
-                return;
-            }
-            playVideo(videoId, 'Selected Video');
-        }
-
-        // Play video
-        function playVideo(videoId, title) {
-            const playerContainer = document.getElementById('playerContainer');
-            
-            if (player) {
-                player.destroy();
-            }
-
-            playerContainer.innerHTML = `<div id="ytplayer"></div>`;
-
-            player = new YT.Player('ytplayer', {
-                height: '400',
-                width: '100%',
-                videoId: videoId,
-                playerVars: {
-                    'playsinline': 1,
-                    'autoplay': 1
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
-                }
-            });
-
-            // Add to queue
-            addToQueue(videoId, title);
-        }
-
-        function onPlayerReady(event) {
-            event.target.playVideo();
-        }
-
-        function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.ENDED) {
-                playNext();
-            }
-        }
-
-        // Queue management
-        function addToQueue(videoId, title) {
-            const existingIndex = currentQueue.findIndex(item => item.videoId === videoId);
-            if (existingIndex === -1) {
-                currentQueue.push({ videoId, title });
-                updateQueueDisplay();
-            }
-        }
-
-        function updateQueueDisplay() {
-            const queueList = document.getElementById('queueList');
-            
-            if (currentQueue.length === 0) {
-                queueList.innerHTML = '<p class="empty-message">No songs in queue</p>';
-                return;
-            }
-
-            queueList.innerHTML = currentQueue.map((item, index) => `
-                <div class="queue-item ${index === currentIndex ? 'active' : ''}">
-                    <div class="queue-info">
-                        <strong>${item.title}</strong>
-                        <small>ID: ${item.videoId}</small>
-                    </div>
-                    <div class="queue-actions">
-                        <button onclick="playFromQueue(${index})" class="btn-small">Play</button>
-                        <button onclick="removeFromQueue(${index})" class="btn-small btn-remove">Remove</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function playFromQueue(index) {
-            currentIndex = index;
-            const item = currentQueue[index];
-            playVideo(item.videoId, item.title);
-        }
-
-        function removeFromQueue(index) {
-            currentQueue.splice(index, 1);
-            if (currentIndex >= currentQueue.length) {
-                currentIndex = Math.max(0, currentQueue.length - 1);
-            }
-            updateQueueDisplay();
-        }
-
-        function playNext() {
-            if (currentIndex < currentQueue.length - 1) {
-                playFromQueue(currentIndex + 1);
-            }
-        }
-
-        // Logout
-        async function logout() {
-            try {
-                await fetch('/api/logout', { method: 'POST' });
-                window.location.href = '/';
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
-        }
-
-        // Initialize
-        loadUser();
-    </script>
 </body>
 </html>
+   

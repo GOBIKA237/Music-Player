@@ -7,162 +7,101 @@ const path = require('path');
 const app = express();
 const db = new Database('music.db');
 
-// Create tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+/* 🔐 API KEY ONLY ON SERVER */
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || 'AIzaSyBwzATzzlT0yrBMLoqYEWGmUqrORVO-gXQ';
 
-  CREATE TABLE IF NOT EXISTS playlists (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    videos TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
+/* ================= DATABASE ================= */
+db.exec(`
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL
+);
 `);
 
-// Middleware
+/* ================= MIDDLEWARE ================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use(session({
   secret: 'music-player-secret-key-2026',
   resave: false,
   saveUninitialized: false,
-  cookie: { 
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  cookie: {
     httpOnly: true,
-    secure: false // set to true if using HTTPS
+    secure: false
   }
 }));
 
-// Serve static files AFTER session middleware
-app.use(express.static(__dirname, {
-  index: false // Don't serve index.html automatically
-}));
+/* 🛡️ SECURITY HEADERS */
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+});
 
-// Auth middleware
+app.use(express.static(__dirname, { index: false }));
+
 function requireAuth(req, res, next) {
-  if (req.session.userId) {
-    next();
-  } else {
-    res.status(401).json({ error: 'Not authenticated' });
-  }
+  if (req.session.userId) next();
+  else res.status(401).json({ error: 'Not authenticated' });
 }
 
-// Routes
 app.get('/', (req, res) => {
-  if (req.session.userId) {
-    res.sendFile(path.join(__dirname, 'index.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'login.html'));
+  res.sendFile(path.join(__dirname, req.session.userId ? 'index.html' : 'login.html'));
+});
+
+/* 🔐 SECURE YOUTUBE SEARCH */
+app.get('/api/search', requireAuth, async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json({ items: [] });
+
+  try {
+    const ytRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`
+    );
+    const data = await ytRes.json();
+    res.json({ items: data.items || [] });
+  } catch {
+    res.json({ items: [] });
   }
 });
 
-// Register
+/* ================= AUTH ================= */
 app.post('/api/register', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
-    }
+  const hash = await bcrypt.hash(req.body.password, 10);
+  const result = db.prepare(
+    'INSERT INTO users (username, password) VALUES (?, ?)'
+  ).run(req.body.username, hash);
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-    const result = stmt.run(username, hashedPassword);
-    
-    req.session.userId = result.lastInsertRowid;
-    req.session.username = username;
-    
-    res.json({ success: true, username });
-  } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
-      res.status(400).json({ error: 'Username already exists' });
-    } else {
-      res.status(500).json({ error: 'Server error' });
-    }
-  }
+  req.session.userId = result.lastInsertRowid;
+  req.session.username = req.body.username;
+  res.json({ success: true });
 });
 
-// Login
 app.post('/api/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-    
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid username or password' });
-    }
+  const user = db.prepare(
+    'SELECT * FROM users WHERE username = ?'
+  ).get(req.body.username);
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    
-    if (!validPassword) {
-      return res.status(400).json({ error: 'Invalid username or password' });
-    }
-
-    req.session.userId = user.id;
-    req.session.username = user.username;
-    
-    res.json({ success: true, username: user.username });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+  if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
+    return res.status(400).json({ error: 'Invalid credentials' });
   }
+
+  req.session.userId = user.id;
+  req.session.username = user.username;
+  res.json({ success: true });
 });
 
-// Logout
 app.post('/api/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    res.json({ success: true });
-  });
+  req.session.destroy(() => res.json({ success: true }));
 });
 
-// Get current user
 app.get('/api/user', requireAuth, (req, res) => {
   res.json({ username: req.session.username });
 });
 
-// Get playlists
-app.get('/api/playlists', requireAuth, (req, res) => {
-  const playlists = db.prepare('SELECT * FROM playlists WHERE user_id = ?').all(req.session.userId);
-  res.json(playlists.map(p => ({
-    ...p,
-    videos: p.videos ? JSON.parse(p.videos) : []
-  })));
-});
-
-// Save playlist
-app.post('/api/playlists', requireAuth, (req, res) => {
-  const { name, videos } = req.body;
-  const stmt = db.prepare('INSERT INTO playlists (user_id, name, videos) VALUES (?, ?, ?)');
-  const result = stmt.run(req.session.userId, name, JSON.stringify(videos));
-  
-  res.json({ success: true, id: result.lastInsertRowid });
-});
-
-// Delete playlist
-app.delete('/api/playlists/:id', requireAuth, (req, res) => {
-  const stmt = db.prepare('DELETE FROM playlists WHERE id = ? AND user_id = ?');
-  stmt.run(req.params.id, req.session.userId);
-  
-  res.json({ success: true });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Music Player Server running on http://localhost:${PORT}`);
-  console.log('Press Ctrl+C to stop the server');
+app.listen(3000, () => {
+  console.log('✅ Secure Music Player running on http://localhost:3000');
 });
