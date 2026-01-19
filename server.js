@@ -5,7 +5,12 @@ const Database = require('better-sqlite3');
 const path = require('path');
 
 const app = express();
-const db = new Database('music.db');
+const db = new Database(
+  process.env.NODE_ENV === 'production'
+    ? '/data/music.db'
+    : 'music.db'
+);
+
 
 /* 🔐 API KEY ONLY ON SERVER */
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || 'AIzaSyBwzATzzlT0yrBMLoqYEWGmUqrORVO-gXQ';
